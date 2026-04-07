@@ -30,8 +30,6 @@ def draw_maze(buf: list[int], config_dict: dict[str, any], number_coordinates: l
 
     # Draw the numbers 42
     for (x, y) in number_coordinates:
-        x -= 1
-        y -= 1
         for i in range(cell_size):
             for j in range(cell_size):
                 paint_pixel(buf, y * cell_size + i, x * cell_size + j,
@@ -40,10 +38,6 @@ def draw_maze(buf: list[int], config_dict: dict[str, any], number_coordinates: l
     # Draw start and finish spots 
     x_start, y_start = config_dict["entry"]
     x_final, y_final = config_dict["exit"]
-    x_start -= 1
-    y_start -= 1
-    x_final -= 1
-    y_final -= 1
     for i in range(cell_size):
         for j in range(cell_size):
             paint_pixel(buf, y_start * cell_size + i, x_start * cell_size + j,

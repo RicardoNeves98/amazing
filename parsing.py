@@ -127,10 +127,10 @@ def parsing_values(config_dict: dict[str, any],
     x_entry, y_entry = entry_coordinate
     exit_coordinate = config_dict["exit"]
     x_exit, y_exit = exit_coordinate
-    if (x_entry < 1 or x_entry > width or y_entry < 1 or y_entry > height):
+    if (x_entry < 0 or x_entry >= width or y_entry < 0 or y_entry >= height):
         raise ValueError(f"[ERROR] Start coordinate '({x_entry}, {y_entry})' "
                          f"has to be inside maze (positive and smaller then {width})")
-    if (x_exit < 1 or x_exit > width or y_exit < 1 or y_exit > height):
+    if (x_exit < 0 or x_exit >= width or y_exit < 0 or y_exit >= height):
         raise ValueError(f"[ERROR] Finish coordinate '({x_exit}, {y_exit})' "
                          f"has to be inside maze (positive and smaller then {width})")
     if (entry_coordinate in number_coordinates) or (exit_coordinate in number_coordinates):
@@ -141,8 +141,8 @@ def get_42_coordinates(config_dict: dict[str, any]) -> list[tuple[int, int]]:
 
     width = config_dict["width"]
     height = config_dict["height"]
-    x_mid = width // 2
-    y_mid = height // 2
+    x_mid = width // 2 - 1
+    y_mid = height // 2 - 1
     return ([(x_mid - 3, y_mid - 2),
              (x_mid + 1, y_mid - 2),
              (x_mid + 2, y_mid - 2),

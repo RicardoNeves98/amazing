@@ -38,8 +38,8 @@ def get_possible_moves(width: int, height: int, curr_coordinate: tuple[int, int]
     possible_moves = []
     for move in moves_dict.values():
         x, y = move
-        if (x > 0 and x <= width and
-            y > 0 and y <= height and
+        if (x >= 0 and x < width and
+            y >= 0 and y < height and
             move not in taken_coordinates):
             possible_moves.append(move)
     possible_moves_dict = {num: move for num, move in moves_dict.items() if
@@ -54,8 +54,8 @@ def create_maze(width: int, height: int,
     grid = dict()
     for i in range(height):
         for j in range(width):
-            grid[(j + 1, i + 1)] = [1, 1, 1, 1]
-    curr_coordinate = (1, 1)
+            grid[(j, i)] = [1, 1, 1, 1]
+    curr_coordinate = (0, 0)
     moves_made = [curr_coordinate]
     taken_coordinates = number_coordinates + moves_made
     total_cells = len(grid)
@@ -90,7 +90,7 @@ def write_output(filename: str,
         else:
             leftover = number - 10
             file.write(chr(ord('A') + leftover))
-        if x == width:
+        if x == width - 1:
             file.write("\n")
     file.close()
 
