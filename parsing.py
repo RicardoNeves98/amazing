@@ -115,7 +115,7 @@ def parsing_keys() -> str | dict[str, any]:
 
 
 def parsing_values(config_dict: dict[str, any],
-                   number_coordinates: list[tuple[int, int]]) -> str | None:
+                   taken_cells: list[tuple[int, int]]) -> str | None:
 
     width = config_dict["width"]
     height = config_dict["height"]
@@ -123,21 +123,21 @@ def parsing_values(config_dict: dict[str, any],
         raise ValueError("[ERROR] Width has to be at minimum 9")
     if height < 8:
         raise ValueError("[ERROR] Height has to be at minimim 8")
-    entry_coordinate = config_dict["entry"]
-    x_entry, y_entry = entry_coordinate
-    exit_coordinate = config_dict["exit"]
-    x_exit, y_exit = exit_coordinate
+    entry_cell = config_dict["entry"]
+    x_entry, y_entry = entry_cell
+    exit_cell = config_dict["exit"]
+    x_exit, y_exit = exit_cell
     if (x_entry < 0 or x_entry >= width or y_entry < 0 or y_entry >= height):
         raise ValueError(f"[ERROR] Start coordinate '({x_entry}, {y_entry})' "
                          f"has to be inside maze (positive and smaller then {width})")
     if (x_exit < 0 or x_exit >= width or y_exit < 0 or y_exit >= height):
         raise ValueError(f"[ERROR] Finish coordinate '({x_exit}, {y_exit})' "
                          f"has to be inside maze (positive and smaller then {width})")
-    if (entry_coordinate in number_coordinates) or (exit_coordinate in number_coordinates):
+    if (entry_cell in taken_cells) or (exit_cell in taken_cells):
         raise ValueError(f"[ERROR] Entry and exit coordinates cannot be on 42")
 
 
-def get_42_coordinates(config_dict: dict[str, any]) -> list[tuple[int, int]]:
+def get_42_cells(config_dict: dict[str, any]) -> list[tuple[int, int]]:
 
     width = config_dict["width"]
     height = config_dict["height"]
