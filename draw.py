@@ -1,6 +1,8 @@
+import time
+from random import randint, random
 from mlx import Mlx
 from maze_generator import MazeGenerator
-from random import randint 
+
 
 class Image:
 
@@ -8,16 +10,19 @@ class Image:
                  width: int, height: int, color_dict: dict[str, list[int]]) -> None:
 
         self.maze = maze
+        self.start = self.maze.start
+        self.end = self.maze.end
+        self.curr_cell = self.maze.start
         self.title = title
         self.texts = texts
         self.cell_size = cell_size
         self.width = cell_size * width
         self.height = cell_size * height + 20 * len(texts)
         self.color_dict = color_dict
-
+        self.color_dark = ["solution"]
         self.mlx = Mlx()
         self.mlx_ptr = self.mlx.mlx_init()
-        self.win_ptr = self.mlx.mlx_new_window(self.mlx_ptr, self.width, 
+        self.win_ptr = self.mlx.mlx_new_window(self.mlx_ptr, self.width,
                                                self.height, self.title)
         self.img_ptr = self.mlx.mlx_new_image(self.mlx_ptr, self.width,
                                               cell_size * height)
@@ -25,7 +30,6 @@ class Image:
         self.buf = buf
         self.size_line = size_line
         self.pixel_dict = self.get_pixel_dict()
-
 
     def change_colors(self) -> None:
 
@@ -36,11 +40,12 @@ class Image:
                 r = randint(0, 255)
             self.color_dict[element] = [b, g, r]
 
-
     def color_image(self) -> None:
 
         for element in self.pixel_dict.keys():
             b, g, r = self.color_dict[element]
+            if element in self.color_dark:
+                b, g, r = 0, 0, 0
             for index in self.pixel_dict[element]:
                 self.buf[index + 0] = b
                 self.buf[index + 1] = g
@@ -48,14 +53,15 @@ class Image:
                 self.buf[index + 3] = 255
         self.mlx.mlx_put_image_to_window(self.mlx_ptr, self.win_ptr, self.img_ptr, 0, 0)
 
+    def reset_elements_color(self, elements: list[str]) -> None:
 
-    def insert_text(self):
-
-        y_pos = self.height - 20 * len(self.texts)
-        for text in self.texts:
-            self.mlx.mlx_string_put(self.mlx_ptr, self.win_ptr, 0, y_pos, 0xFFFFFF, text)
-            y_pos += 20
-
+        self.color_dark += elements
+        if "solution" not in self.color_dark:
+            self.color_dark.append("solution")
+        self.color_image()
+        for element in elements:
+            if element != "solution":
+                self.color_dark.remove(element)
 
     def get_block_pixels(self, pos_list: list[int], block_size: int) -> None:
 
@@ -73,69 +79,124 @@ class Image:
                 index += self.size_line
         return (pixel_list)
 
+    def get_wall_pixels(self, curr_cell: tuple[int, int], walls: list[int]):
+
+        wall_pixels = []
+        x_pos, y_pos = curr_cell
+        up, right, down, left = walls
+        if up:
+            pixel = (y_pos * self.size_line + x_pos * 4) * self.cell_size
+            for i in range(self.cell_size):
+                wall_pixels.append(pixel)
+                pixel += 4
+        if right:
+            pixel = (y_pos * self.size_line + x_pos * 4) * self.cell_size 
+            pixel += (self.cell_size - 1) * 4
+            for i in range(self.cell_size):
+                wall_pixels.append(pixel)
+                pixel += self.size_line
+        if down:
+            pixel = (y_pos * self.size_line + x_pos * 4) * self.cell_size
+            pixel += (self.cell_size - 1) * self.size_line
+            for i in range(self.cell_size):
+                wall_pixels.append(pixel)
+                pixel += 4
+        if left:
+            pixel = (y_pos * self.size_line + x_pos * 4) * self.cell_size
+            for i in range(self.cell_size):
+                wall_pixels.append(pixel)
+                pixel += self.size_line
+        return (wall_pixels)      
 
     def get_pixel_dict(self) -> dict[str, list[int]]:
 
         pixel_dict = dict()
-
-        # Get maze walls pixels 
-        wall_indexs = []
-        for pos, walls in self.maze.walls_config.items():
-            x_pos, y_pos = pos
-            up, right, down, left = walls
-            if up:
-                index = (y_pos * self.size_line + x_pos * 4) * self.cell_size
-                for i in range(self.cell_size):
-                    wall_indexs.append(index)
-                    index += 4
-            if right:
-                index = (y_pos * self.size_line + x_pos * 4) * self.cell_size 
-                index += (self.cell_size - 1) * 4
-                for i in range(self.cell_size):
-                    wall_indexs.append(index)
-                    index += self.size_line
-            if down:
-                index = (y_pos * self.size_line + x_pos * 4) * self.cell_size
-                index += (self.cell_size - 1) * self.size_line
-                for i in range(self.cell_size):
-                    wall_indexs.append(index)
-                    index += 4
-            if left:
-                index = (y_pos * self.size_line + x_pos * 4) * self.cell_size
-                for i in range(self.cell_size):
-                    wall_indexs.append(index)
-                    index += self.size_line
-
-        # Get 42 number pixels
-        number_42_indexs = self.get_block_pixels(self.maze.num_42_cells, self.cell_size)
-        pixel_dict["maze_num_wall"] = number_42_indexs + wall_indexs 
-
+        # Get walls and 42 number pixels
+        wall_pixels = []
+        for i in range(self.maze.width):
+            for j in range(self.maze.height):
+                wall_pixels += self.get_wall_pixels((i,j), [1, 1, 1, 1])
+        number_42_pixels = self.get_block_pixels(self.maze.num_42_cells, self.cell_size)
+        pixel_dict["maze_num_wall"] = number_42_pixels + wall_pixels 
+        # Initialize solution, player_path and entry pixels 
+        pixel_dict["solution"] = []
+        pixel_dict["player_path"] = []
+        entry_pixels = self.get_block_pixels([self.maze.start], self.cell_size - 2)
+        pixel_dict["position"] = entry_pixels
         # Get entry pixels
-        entry_indexs = self.get_block_pixels([self.maze.start], self.cell_size - 2)
-        pixel_dict["entry"] = entry_indexs
-
+        pixel_dict["entry"] = []
         # Get exit pixels
-        exit_indexs = self.get_block_pixels([self.maze.end], self.cell_size - 2)
-        pixel_dict["exit"] = exit_indexs
+        pixel_dict["exit"] = []
+        return (pixel_dict)
 
-        return(pixel_dict)
+    def algorithm_animation(self) -> None:
 
+        self.color_image()
+        self.color_dict["maze_num_wall"] = [0, 0, 0]
+        self.pixel_dict["maze_num_wall"] = []
+        curr_cell = self.maze.start
+        count = 0
+        for next_cell in self.maze.algorithm_pos:
+            x_curr, y_curr = curr_cell
+            x_next, y_next = next_cell
+            self.reset_elements_color(["position"])
+            if x_next > x_curr:
+                self.pixel_dict["maze_num_wall"] += self.get_wall_pixels(curr_cell, [0, 1, 0, 0])
+                curr_cell = next_cell
+                self.pixel_dict["maze_num_wall"] += self.get_wall_pixels(curr_cell, [0, 0, 0, 1])
+            elif x_next < x_curr:
+                self.pixel_dict["maze_num_wall"] += self.get_wall_pixels(curr_cell, [0, 0, 0, 1])
+                curr_cell = next_cell
+                self.pixel_dict["maze_num_wall"] += self.get_wall_pixels(curr_cell, [0, 1, 0, 0])
+            elif y_next > y_curr:
+                self.pixel_dict["maze_num_wall"] += self.get_wall_pixels(curr_cell, [0, 0, 1, 0])
+                curr_cell = next_cell
+                self.pixel_dict["maze_num_wall"] += self.get_wall_pixels(curr_cell, [1, 0, 0, 0])
+            elif y_next < y_curr:
+                self.pixel_dict["maze_num_wall"] += self.get_wall_pixels(curr_cell, [1, 0, 0, 0])
+                curr_cell = next_cell
+                self.pixel_dict["maze_num_wall"] += self.get_wall_pixels(curr_cell, [0, 0, 1, 0])
+            self.pixel_dict["maze_num_wall"] = list(set(self.pixel_dict["maze_num_wall"])) 
+            curr_cell_pixels = self.get_block_pixels([curr_cell], self.cell_size - 2)
+            self.pixel_dict["position"] = curr_cell_pixels
+        self.color_image()
 
     def start_visual(self) -> None:
 
-        self.color_image()
-        self.insert_text()
+        self.algorithm_animation()
+        y_pos = self.height - 20 * len(self.texts)
+        for text in self.texts:
+            self.mlx.mlx_string_put(self.mlx_ptr, self.win_ptr, 0, y_pos, 0xFFFFFF, text)
+            y_pos += 20
         self.mlx.mlx_key_hook(self.win_ptr, self.on_key, ())
         self.mlx.mlx_loop(self.mlx_ptr)
 
+    # This function is responsable for drawing the moves player does with the arrows
+    def move(self) -> None:
+
+        if self.curr_cell == self.end:
+            self.reset_elements_color(["exit", "player_path", "entry", "position"])
+            self.end = (randint(0, self.maze.width - 1),
+                        randint(0, self.maze.height - 1))
+            if self.end in self.maze.num_42_cells:
+                self.end = (randint(0, self.maze.width - 1),
+                            randint(0, self.maze.height - 1))
+            exit_indexs = self.get_block_pixels([self.end], self.cell_size - 2)
+            self.pixel_dict["exit"] = exit_indexs
+            self.pixel_dict["player_path"] = []
+            self.pixel_dict["entry"] = []
+        cell_pixels = self.get_block_pixels([self.curr_cell], self.cell_size - 10)
+        for pixel in cell_pixels:
+            self.pixel_dict["player_path"].append(pixel)
+        self.pixel_dict["position"] = cell_pixels
+        self.color_image()
 
     def on_key(self, keycode, param) -> None:
 
-        print("Keycode:", keycode)
         # Escape keycode to quit window 
         if keycode == 65307:
             self.mlx.mlx_loop_exit(self.mlx_ptr)
-        # Space Keycode to change colors 
+        # Space Keycode to change colors
         if keycode == 32:
             self.change_colors()
             self.color_image()
@@ -146,10 +207,44 @@ class Image:
                                       self.maze.maze_type, self.maze.num_42_cells)
             self.maze.create_maze()
             self.maze.write_output()
-
-            for i in range(len(self.buf)):
-                self.buf[i] = 0
+            self.curr_cell = self.maze.start
+            self.reset_elements_color(["maze_num_wall", "player_path", "position"])
             self.pixel_dict = self.get_pixel_dict()
             self.color_image()
-            self.mlx.mlx_put_image_to_window(self.mlx_ptr, self.win_ptr,
-                                             self.img_ptr, 0, 0)
+        # S key that makes the solution pop up 
+        if keycode == 115:
+            start = self.curr_cell
+            end = self.end
+            solution_indexs = self.get_block_pixels(self.maze.solve_maze(start, end),
+                                                    self.cell_size - 8)
+            self.pixel_dict["solution"] = solution_indexs
+            if "solution" in self.color_dark:
+                self.color_dark.remove("solution")
+            self.color_image()
+        # H key that hide the solution 
+        if keycode == 104:
+            if "solution" not in self.color_dark:
+                self.color_dark.append("solution")
+            self.color_image()
+        # Arrows to move single player 
+        if keycode in [65361, 65362, 65363, 65364]:
+            # Left arrow and is able to move left 
+            if keycode == 65361 and not self.maze.walls_config[self.curr_cell][3]:
+                x_pos, y_pos = self.curr_cell
+                self.curr_cell = (x_pos - 1, y_pos)
+                self.move()
+            # Up arrow and is able to move up 
+            elif keycode == 65362 and not self.maze.walls_config[self.curr_cell][0]:
+                x_pos, y_pos = self.curr_cell
+                self.curr_cell = (x_pos, y_pos - 1)
+                self.move()
+            # Right arrow and is able to move right 
+            elif keycode == 65363 and not self.maze.walls_config[self.curr_cell][1]:
+                x_pos, y_pos = self.curr_cell
+                self.curr_cell = (x_pos + 1, y_pos)
+                self.move()
+            # Down arrow and is able to move down 
+            elif keycode == 65364 and not self.maze.walls_config[self.curr_cell][2]:
+                x_pos, y_pos = self.curr_cell
+                self.curr_cell = (x_pos, y_pos + 1)
+                self.move()

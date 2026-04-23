@@ -1,4 +1,5 @@
-from random import randint, choice
+import random
+
 
 class MazeGenerator:
 
@@ -14,7 +15,7 @@ class MazeGenerator:
         self.maze_type = maze_type
         self.walls_config = self.init_walls()
         self.num_42_cells = num_42_cells
-
+        self.algorithm_pos = list()
 
     def init_walls(self):
 
@@ -24,41 +25,83 @@ class MazeGenerator:
                 grid[(j, i)] = [1, 1, 1, 1]
         return (grid)
 
-    
-    def get_possible_moves(self, curr_coordinate: tuple[int, int],
-                           taken_cells = list[tuple[int, int]]) -> list[int]:
+    def get_possible_moves1(self, curr_coordinate: tuple[int, int],
+                            taken_cells: list[tuple[int, int]]) -> list[int]:
 
         x, y = curr_coordinate
         moves_dict = {0: (x, y - 1), 1: (x + 1, y), 2: (x, y + 1), 3: (x - 1, y)}
         possible_moves = []
         for move in moves_dict.values():
             x, y = move
-            if (x >= 0 and x < self.width and y >= 0 and y < self.height and
-                move not in taken_cells):
+            if (x >= 0 and x < self.width and y >= 0 and y < self.height
+                    and move not in taken_cells):
                 possible_moves.append(move)
         possible_moves_dict = {num: move for num, move in moves_dict.items() if
                                move in possible_moves}
         return (possible_moves_dict)
-
 
     def create_maze(self) -> None:
 
         curr_cell = self.start
         taken_cells = self.num_42_cells.copy()
         taken_cells.append(curr_cell)
+        self.algorithm_pos.append(curr_cell)
         total_cells = self.height * self.width
         while len(taken_cells) != total_cells:
-            possible_moves_dict = self.get_possible_moves(curr_cell, taken_cells)
+            possible_moves_dict = self.get_possible_moves1(curr_cell, taken_cells)
             while not possible_moves_dict:
                 curr_index = taken_cells.index(curr_cell)
                 curr_cell = taken_cells[curr_index - 1]
-                possible_moves_dict = self.get_possible_moves(curr_cell, taken_cells)
-            move_index = choice(list(possible_moves_dict.keys()))
+                self.algorithm_pos.append(curr_cell)
+                possible_moves_dict = self.get_possible_moves1(curr_cell, taken_cells)
+            move_index = random.choice(list(possible_moves_dict.keys()))
             self.walls_config[curr_cell][move_index] = 0
             curr_cell = possible_moves_dict[move_index]
+            self.algorithm_pos.append(curr_cell)
             self.walls_config[curr_cell][(move_index + 2) % 4] = 0
             taken_cells.append(curr_cell)
 
+    def get_possible_moves2(self, curr_cell: tuple[int, int],
+                            taken_cells: list[tuple[int, int]]) -> list[tuple[int, int]]:
+
+        up, right, down, left = self.walls_config[curr_cell]
+        x, y = curr_cell
+        cell_up = (x, y - 1)
+        cell_right = (x + 1, y)
+        cell_down = (x, y + 1)
+        cell_left = (x - 1, y)
+        possible_moves = []
+        if not up and cell_up not in taken_cells:
+            possible_moves.append(cell_up)
+        if not right and cell_right not in taken_cells:
+            possible_moves.append(cell_right)
+        if not down and cell_down not in taken_cells:
+            possible_moves.append(cell_down)
+        if not left and cell_left not in taken_cells:
+            possible_moves.append(cell_left)
+        return (possible_moves)
+
+    def solve_maze(self, start_cell: tuple[int, int], end_cell: tuple[int, int]) -> None:
+
+        curr_cell = start_cell
+        best_path = [curr_cell]
+        cell_paths = dict()
+        while curr_cell != end_cell:
+            possible_moves = self.get_possible_moves2(curr_cell, best_path)
+            if not possible_moves:
+                best_path.pop()
+                curr_cell = best_path[-1]
+                possible_moves = cell_paths[curr_cell]
+                while not possible_moves:
+                    best_path.pop()
+                    curr_cell = best_path[-1]
+                    possible_moves = cell_paths[curr_cell]
+            next_cell = possible_moves[-1]
+            possible_moves.pop()
+            cell_paths[curr_cell] = possible_moves
+            best_path.append(next_cell)
+            curr_cell = next_cell
+        return (best_path)
 
     def write_output(self) -> None:
 
@@ -74,4 +117,23 @@ class MazeGenerator:
                 file.write(chr(ord('A') + leftover))
             if x == self.width - 1:
                 file.write("\n")
+        x_start, y_start = self.start
+        x_end, y_end = self.end
+        file.write(f"\n{x_start},{y_start}\n")
+        file.write(f"{x_end},{y_end}\n")
+        solution = self.solve_maze(self.start, self.end)
+        curr_cell = self.start
+        for next_cell in solution[1:]:
+            x_curr, y_curr = curr_cell
+            x_next, y_next = next_cell
+            if x_next > x_curr:
+                file.write("E")
+            elif x_next < x_curr:
+                file.write("W")
+            elif y_next > y_curr:
+                file.write("S")
+            elif y_next < y_curr:
+                file.write("N")
+            curr_cell = next_cell
+        file.write("\n")
         file.close()

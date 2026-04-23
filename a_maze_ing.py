@@ -1,8 +1,8 @@
 import sys
-import parsing
+import random
 from draw import Image
-from maze_generator import MazeGenerator 
-from random import randint, choice 
+from maze_generator import MazeGenerator
+import parsing
 
 
 def main() -> None:
@@ -15,6 +15,7 @@ def main() -> None:
         print(config_dict)
         sys.exit()
     num_42_cells = parsing.get_42_cells(config_dict)
+    random.seed(config_dict["seed"])
     try:
         parsing.parsing_values(config_dict, num_42_cells)
     except ValueError as message:
@@ -33,10 +34,11 @@ def main() -> None:
                   "position": [150, 150, 150]}
     texts = ["====== A-Maze-Ing ======",
              "Use arrows to move",
-             "N -> Re-generate maze",
-             "SPACE -> Change Colors",
-             "H/S -> Hide/Show Solution",
-             "ESC -> Quit"]
+             "Press SPACE to Change Colors",
+             "Press N to Re-generate maze",
+             "Press S to Show Solution",
+             "Press H to Hide Solution",
+             "Press ESC to Quit"]
     maze_visual = Image(maze, "Maze Generator", texts, 25, maze.width,
                         maze.height, color_dict)
     maze_visual.start_visual()
