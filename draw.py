@@ -24,7 +24,6 @@ class Image:
         self.width = cell_size * width
         self.height = cell_size * height + 20 * len(texts)
         self.color_dict = color_dict
-        self.color_dark = ["solution"]
         self.pixel_dict = pixel_dict
         # Setting the animation generator and time attributes 
         self.animation_on = True
@@ -51,28 +50,18 @@ class Image:
                 r = randint(0, 255)
             self.color_dict[element] = [b, g, r]
 
-    def color_image(self) -> None:
+    def color_element(self, element: str, color: list[int] = None) -> None:
 
-        for element in self.pixel_dict.keys():
+        if not color:
             b, g, r = self.color_dict[element]
-            if element in self.color_dark:
-                b, g, r = self.color_dict["background"]
-            for index in self.pixel_dict[element]:
-                self.buf[index + 0] = b
-                self.buf[index + 1] = g
-                self.buf[index + 2] = r
-                self.buf[index + 3] = 255
+        else:
+            b, g, r = color
+        for index in self.pixel_dict[element]:
+            self.buf[index + 0] = b
+            self.buf[index + 1] = g
+            self.buf[index + 2] = r
+            self.buf[index + 3] = 255
         self.mlx.mlx_put_image_to_window(self.mlx_ptr, self.win_ptr, self.img_ptr, 0, 0)
-
-    def reset_elements_color(self, elements: list[str]) -> None:
-
-        self.color_dark += elements
-        if "solution" not in self.color_dark:
-            self.color_dark.append("solution")
-        self.color_image()
-        for element in elements:
-            if element != "solution":
-                self.color_dark.remove(element)
 
     def insert_text(self) -> None:
 
@@ -147,7 +136,6 @@ class Image:
 
     def algorithm_sequence(self) -> Generator[None, None, None]:
 
-        background = []
         cell_sequence = self.maze.algorithm_pos.copy()
         curr_cell = cell_sequence.pop(0)
         self.color_cell("background", curr_cell)
@@ -194,7 +182,7 @@ class Image:
     def move(self) -> None:
 
         if self.curr_cell == self.end:
-            self.reset_elements_color(["exit", "player_path", "entry", "position"])
+            self.color_element("background")
             self.end = (randint(0, self.maze.width - 1),
                         randint(0, self.maze.height - 1))
             if self.end in self.maze.num_42_cells:
@@ -206,12 +194,10 @@ class Image:
             self.pixel_dict["entry"] = []
         self.pixel_dict["position"] = []
         self.color_cell("position", self.curr_cell, False)
-        self.color_cell("player_path", self.curr_cell, False)
-        self.color_image()
+        self.mlx.mlx_put_image_to_window(self.mlx_ptr, self.win_ptr, self.img_ptr, 0, 0)
 
     def on_key(self, keycode, param) -> None:
 
-        print(keycode)
         # Escape keycode to quit window 
         if keycode == 65307:
             self.mlx.mlx_loop_exit(self.mlx_ptr)
@@ -224,7 +210,8 @@ class Image:
         # Space Keycode to change colors
         if keycode == 32 and not self.animation_on:
             self.change_colors()
-            self.color_image()
+            for element in self.pixel_dict.keys():
+                self.color_element(element, self.color_dict[element])
         # N Keycode to generate a new maze 
         if keycode == 110 and not self.animation_on:
             self.maze = MazeGenerator(self.maze.width, self.maze.height, self.maze.start,
@@ -233,7 +220,9 @@ class Image:
             self.maze.create_maze()
             self.maze.write_output()
             self.start = self.maze.start
-            self.reset_elements_color(["entry", "exit", "background", "maze_num_wall"])
+            self.curr_cell = self.maze.start
+            self.color_element("maze_num_wall", [0, 0, 0])
+            self.color_element("background", [0, 0, 0])
             self.pixel_dict = {key: [] for key in self.pixel_dict}
             self.draw_grid()
             self.animation_on = True
@@ -245,16 +234,17 @@ class Image:
             self.pixel_dict["solution"] = []
             for cell in self.maze.solve_maze(start, end):
                 self.color_cell("solution", cell, False)
-            if "solution" in self.color_dark:
-                self.color_dark.remove("solution")
-            self.color_image()
+            self.mlx.mlx_put_image_to_window(self.mlx_ptr, self.win_ptr, self.img_ptr, 0, 0)
         # H key that hide the solution 
         if keycode == 104 and not self.animation_on:
-            if "solution" not in self.color_dark:
-                self.color_dark.append("solution")
-            self.color_image()
+            self.color_element("solution", self.color_dict["background"])
+            self.color_element("player_path")
+            self.color_element("position")
+            self.mlx.mlx_put_image_to_window(self.mlx_ptr, self.win_ptr, self.img_ptr, 0, 0)
         # Arrows to move single player 
         if keycode in [65361, 65362, 65363, 65364] and not self.animation_on:
+            if self.curr_cell != self.start:
+                self.color_cell("player_path", self.curr_cell, False)
             # Left arrow and is able to move left 
             if keycode == 65361 and not self.maze.walls_config[self.curr_cell][3]:
                 x_pos, y_pos = self.curr_cell
