@@ -1,5 +1,5 @@
-import random
-
+import random 
+import time 
 
 class MazeGenerator:
 
@@ -15,7 +15,7 @@ class MazeGenerator:
         self.maze_type = maze_type
         self.walls_config = self.init_walls()
         self.num_42_cells = num_42_cells
-        self.algorithm_pos = list()
+        self.algorithm_pos = [self.start]
 
     def init_walls(self):
 
@@ -45,21 +45,21 @@ class MazeGenerator:
         curr_cell = self.start
         taken_cells = self.num_42_cells.copy()
         taken_cells.append(curr_cell)
-        self.algorithm_pos.append(curr_cell)
         total_cells = self.height * self.width
         while len(taken_cells) != total_cells:
             possible_moves_dict = self.get_possible_moves1(curr_cell, taken_cells)
-            while not possible_moves_dict:
-                curr_index = taken_cells.index(curr_cell)
-                curr_cell = taken_cells[curr_index - 1]
+            if not possible_moves_dict:
+                while not possible_moves_dict:
+                    curr_index = taken_cells.index(curr_cell)
+                    curr_cell = taken_cells[curr_index - 1]
+                    possible_moves_dict = self.get_possible_moves1(curr_cell, taken_cells)
                 self.algorithm_pos.append(curr_cell)
-                possible_moves_dict = self.get_possible_moves1(curr_cell, taken_cells)
             move_index = random.choice(list(possible_moves_dict.keys()))
             self.walls_config[curr_cell][move_index] = 0
             curr_cell = possible_moves_dict[move_index]
-            self.algorithm_pos.append(curr_cell)
             self.walls_config[curr_cell][(move_index + 2) % 4] = 0
             taken_cells.append(curr_cell)
+            self.algorithm_pos.append(curr_cell)
 
     def get_possible_moves2(self, curr_cell: tuple[int, int],
                             taken_cells: list[tuple[int, int]]) -> list[tuple[int, int]]:
@@ -101,6 +101,8 @@ class MazeGenerator:
             cell_paths[curr_cell] = possible_moves
             best_path.append(next_cell)
             curr_cell = next_cell
+        best_path.pop()
+        best_path.pop(0)
         return (best_path)
 
     def write_output(self) -> None:

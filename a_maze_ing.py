@@ -26,13 +26,17 @@ def main() -> None:
                          config_dict["output_file"], config_dict["perfect"], num_42_cells)
     maze.create_maze()
     maze.write_output()
-    color_dict = {"maze_num_wall": [120, 120, 120],
+    color_dict = {"background": [120, 50, 90],
+                  "maze_num_wall": [120, 120, 120],
+                  "solution": [0, 255, 0],
                   "entry": [255, 0, 0],
                   "exit": [0, 0, 255],
-                  "solution": [0, 255, 0],
                   "player_path": [70, 70, 70],
                   "position": [150, 150, 150]}
+    pixel_dict = {key: [] for key in color_dict.keys()}
     texts = ["====== A-Maze-Ing ======",
+             "Press + to double animation speed",
+             "Press - to half animation speed",
              "Use arrows to move",
              "Press SPACE to Change Colors",
              "Press N to Re-generate maze",
@@ -40,7 +44,7 @@ def main() -> None:
              "Press H to Hide Solution",
              "Press ESC to Quit"]
     maze_visual = Image(maze, "Maze Generator", texts, 25, maze.width,
-                        maze.height, color_dict)
+                        maze.height, color_dict, pixel_dict)
     maze_visual.start_visual()
 
 
