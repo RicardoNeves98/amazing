@@ -15,8 +15,6 @@ class MazeGenerator:
         self.maze_type = maze_type
         self.walls_config = self.init_walls()
         self.num_42_cells = num_42_cells
-        self.moves_sequence = [self.start]
-        self.walls_to_burn = dict()
 
     def init_walls(self):
 
@@ -44,21 +42,21 @@ class MazeGenerator:
     def create_maze(self) -> None:
 
         curr_cell = self.start
+        moves_sequnce = [curr_cell]
         total_num_cells = len(self.num_42_cells)
         total_cells = self.height * self.width
-        while len(self.moves_sequence) + total_num_cells != total_cells:
-            possible_moves_dict = self.get_possible_moves1(curr_cell, self.moves_sequence)
+        while len(moves_sequence) + total_num_cells != total_cells:
+            possible_moves_dict = self.get_possible_moves1(curr_cell, moves_sequence)
             while not possible_moves_dict:
                 curr_index = self.moves_sequence.index(curr_cell)
                 curr_cell = self.moves_sequence[curr_index - 1]
-                possible_moves_dict = self.get_possible_moves1(curr_cell, self.moves_sequence)
+                possible_moves_dict = self.get_possible_moves1(curr_cell, moves_sequence)
             move_index = random.choice(list(possible_moves_dict.keys()))
             self.walls_config[curr_cell][move_index] = 0
             curr_cell = possible_moves_dict[move_index]
             self.walls_config[curr_cell][(move_index + 2) % 4] = 0
-            self.moves_sequence.append(curr_cell)
-        if not self.maze_type:
-            self.remove_walls()
+            moves_sequence.append(curr_cell)
+        return (moves_sequence)
 
     def get_possible_moves2(self, curr_cell: tuple[int, int],
                             taken_cells: list[tuple[int, int]]) -> list[tuple[int, int]]:
@@ -94,8 +92,9 @@ class MazeGenerator:
         self.walls_config[next_cell][(index + 2) % 4] = 0
         return (next_cell)
 
-    def remove_walls(self) -> None:
+    def remove_walls(self) -> dict[tuple[int, int], tuple[int, int]]:
 
+        walls_to_burn = dict()
         available_cells = [(i, j) for i in range(1, self.width - 1) for j in range(1, self.height - 1) if (i, j)
                            not in self.num_42_cells]
         while available_cells:
@@ -104,13 +103,14 @@ class MazeGenerator:
             while not next_cell:
                 available_cells.remove(curr_cell)
                 if not available_cells:
-                    return 
+                    return (walls_to_burn)
                 curr_cell = random.choice(available_cells)
                 next_cell = self.select_cell(curr_cell)
-            self.walls_to_burn[curr_cell] = next_cell
+            walls_to_burn[curr_cell] = next_cell
             curr_x, curr_y = curr_cell
             close_cells = [(curr_x + i, curr_y + j) for i in [-2, -1, 0, 1, 2] for j in [-2, -1, 0, 1, 2]]
             available_cells = [cell for cell in available_cells if cell not in close_cells]
+            return (walls_to_burn)
 
     def solve_maze(self, start_cell: tuple[int, int], end_cell: tuple[int, int]) -> None:
 
