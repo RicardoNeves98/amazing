@@ -1,6 +1,6 @@
 import time
 from typing import Generator
-from random import randint, random
+from random import randint, random, choice
 from mlx import Mlx
 from maze_generator import MazeGenerator
 
@@ -26,10 +26,12 @@ class Image:
         self.color_dict = color_dict
         self.pixel_dict = pixel_dict
         # Setting the animation generator and time attributes 
-        self.animation_on = True
+        self.building_maze = True
+        self.deleting_walls = False
         self.algorithm_gen = self.algorithm_sequence()
         self.last_time = None
         self.delay = 0.5
+        self.burst_delay = 0.03
         # Jump start the mlx and saving important attributes
         self.mlx = Mlx()
         self.mlx_ptr = self.mlx.mlx_init()
@@ -115,8 +117,11 @@ class Image:
             self.color_cell("maze_num_wall", cell, False)
         self.mlx.mlx_put_image_to_window(self.mlx_ptr, self.win_ptr, self.img_ptr, 0, 0)
 
-    def color_wall(self, curr_cell: tuple[int, int], next_cell: tuple[int, int]) -> int:
+    def color_wall(self, element: str, curr_cell: tuple[int, int], next_cell: tuple[int, int],
+                   taken_cells: list[tuple[int, int]], paint: bool = True) -> int:
 
+        if next_cell in taken_cells:
+            return (0)
         x_curr, y_curr = curr_cell
         x_next, y_next = next_cell
         curr_cell_start = (y_curr * self.size_line + x_curr * 4) * self.cell_size
@@ -124,35 +129,38 @@ class Image:
         next_cell_start = (y_next * self.size_line + x_next * 4) * self.cell_size
         next_cell_start += (self.size_line + 4) * self.wall_width
         start = max(curr_cell_start, next_cell_start)
-        if y_curr == y_next:
+        if y_curr == y_next and abs(x_curr - x_next) == 1:
             start -= 4 * 2 * self.wall_width
-            self.color_rect("background", start, self.maze_width, 2 * self.wall_width)
+            self.color_rect(element, start, self.maze_width, 2 * self.wall_width)
             return (1)
-        elif x_curr == x_next:
+        elif x_curr == x_next and abs(y_curr - y_next) == 1:
             start -= self.size_line * 2 * self.wall_width
-            self.color_rect("background", start, 2 * self.wall_width, self.maze_width)
+            self.color_rect(element, start, 2 * self.wall_width, self.maze_width)
             return (1)
         return (0)
 
     def algorithm_sequence(self) -> Generator[None, None, None]:
 
-        cell_sequence = self.maze.algorithm_pos.copy()
+        cell_sequence = self.maze.moves_sequence.copy()
         curr_cell = cell_sequence.pop(0)
         self.color_cell("background", curr_cell)
         cell_hist = [curr_cell]
+        taken_cells = [curr_cell]
         yield
         for next_cell in cell_sequence:
-            if not self.color_wall(curr_cell, next_cell):
-                while (curr_cell != next_cell):
-                    cell_hist.pop()
-                    curr_cell = cell_hist[-1]
+            while not self.color_wall("background", curr_cell, next_cell, taken_cells):
+                cell_hist.pop()
+                curr_cell = cell_hist[-1]
             else:
                 self.color_cell("background", next_cell)
                 cell_hist.append(next_cell)
+                taken_cells.append(next_cell)
                 curr_cell = next_cell
                 yield
         self.pixel_dict["background"] = set(self.pixel_dict["background"])
         self.pixel_dict["maze_num_wall"] = set(self.pixel_dict["maze_num_wall"]) - self.pixel_dict["background"]
+        self.pixel_dict["background"] = list(self.pixel_dict["background"])
+        self.pixel_dict["maze_num_wall"] = list(self.pixel_dict["maze_num_wall"])
 
     def start_visual(self) -> None:
 
@@ -165,17 +173,36 @@ class Image:
     # This function is responsable for the whole animation 
     def animation(self, param) -> None:
 
-        if self.animation_on:
+        if self.building_maze:
             now = time.monotonic()
             if (not self.last_time or now - self.last_time > self.delay):
                 try:
                     next(self.algorithm_gen)
                     self.last_time = time.monotonic()
                 except StopIteration:
-                    self.animation_on = False
-                    self.color_cell("entry", self.start)
-                    self.color_cell("exit", self.end)
-            return
+                    self.building_maze = False
+                    if not self.maze.maze_type:
+                        self.deleting_walls = True
+                    for cell1, cell2 in self.maze.walls_to_burn.items():
+                        self.color_wall("walls_to_delete", cell1, cell2, [], False)
+                    self.mlx.mlx_put_image_to_window(self.mlx_ptr, self.win_ptr, self.img_ptr, 0, 0)
+        elif self.deleting_walls:
+            if (self.color_dict["walls_to_delete"] != [0, 0, 255]):
+                now = time.monotonic()
+                if (now - self.last_time > self.burst_delay):
+                    b, g, r = self.color_dict["walls_to_delete"]
+                    self.color_dict["walls_to_delete"] = [0, 0, r + 1]
+                    self.color_element("walls_to_delete")
+                    self.last_time = time.monotonic()
+            else:
+                self.color_dict["walls_to_delete"] = self.color_dict["background"]
+                self.color_element("walls_to_delete")
+                self.pixel_dict["background"] += self.color_dict["walls_to_delete"]
+                del self.pixel_dict["walls_to_delete"]
+                del self.color_dict["walls_to_delete"]
+                self.color_cell("entry", self.start)
+                self.color_cell("exit", self.end)
+                self.deleting_walls = False
         return
  
     # This function is responsable for drawing the moves player does with the arrows
@@ -202,18 +229,18 @@ class Image:
         if keycode == 65307:
             self.mlx.mlx_loop_exit(self.mlx_ptr)
         # - Keycode to half the animation speed  
-        if keycode == 65451:
+        if keycode == 65451 and self.building_maze:
             self.delay /= 2
         # + Keycode to double the animation speed 
-        if keycode == 65453:
+        if keycode == 65453 and self.building_maze:
             self.delay *= 2
         # Space Keycode to change colors
-        if keycode == 32 and not self.animation_on:
+        if keycode == 32 and not (self.building_maze or self.deleting_walls):
             self.change_colors()
             for element in self.pixel_dict.keys():
                 self.color_element(element, self.color_dict[element])
         # N Keycode to generate a new maze 
-        if keycode == 110 and not self.animation_on:
+        if keycode == 110 and not (self.building_maze or self.deleting_walls):
             self.maze = MazeGenerator(self.maze.width, self.maze.height, self.maze.start,
                                       self.maze.end, self.maze.output_file, 
                                       self.maze.maze_type, self.maze.num_42_cells)
@@ -224,11 +251,13 @@ class Image:
             self.color_element("maze_num_wall", [0, 0, 0])
             self.color_element("background", [0, 0, 0])
             self.pixel_dict = {key: [] for key in self.pixel_dict}
+            self.pixel_dict["walls_to_delete"] = []
+            self.color_dict["walls_to_delete"] = [0, 0, 100]
             self.draw_grid()
-            self.animation_on = True
+            self.building_maze = True
             self.algorithm_gen = self.algorithm_sequence()
         # S key that makes the solution pop up 
-        if keycode == 115 and not self.animation_on:
+        if keycode == 115 and not (self.building_maze or self.deleting_walls):
             start = self.curr_cell
             end = self.end
             self.pixel_dict["solution"] = []
@@ -236,13 +265,13 @@ class Image:
                 self.color_cell("solution", cell, False)
             self.mlx.mlx_put_image_to_window(self.mlx_ptr, self.win_ptr, self.img_ptr, 0, 0)
         # H key that hide the solution 
-        if keycode == 104 and not self.animation_on:
+        if keycode == 104 and not (self.building_maze or self.deleting_walls):
             self.color_element("solution", self.color_dict["background"])
             self.color_element("player_path")
             self.color_element("position")
             self.mlx.mlx_put_image_to_window(self.mlx_ptr, self.win_ptr, self.img_ptr, 0, 0)
         # Arrows to move single player 
-        if keycode in [65361, 65362, 65363, 65364] and not self.animation_on:
+        if keycode in [65361, 65362, 65363, 65364] and not (self.building_maze or self.deleting_walls):
             if self.curr_cell != self.start:
                 self.color_cell("player_path", self.curr_cell, False)
             # Left arrow and is able to move left 
