@@ -1,5 +1,6 @@
 import time
 from typing import Generator
+from random import randint, random
 from random import randint, random, choice
 from mlx import Mlx
 from maze_generator import MazeGenerator
@@ -7,9 +8,8 @@ from maze_generator import MazeGenerator
 
 class Image:
 
-    def __init__(self, maze: MazeGenerator, title: str, texts: list[str], cell_size: int,
-                 width: int, height: int, color_dict: dict[str, list[int]],
-                 pixel_dict: dict[str, list[int]]) -> None:
+    def __init__(self, maze: MazeGenerator, texts: list[str], cell_size: int,
+                 color_dict: dict[str, list[int]], pixel_dict: dict[str, list[int]]) -> None:
 
         # Setting up the basic settings 
         self.maze = maze
@@ -21,8 +21,10 @@ class Image:
         self.cell_size = cell_size
         self.wall_width = 3
         self.maze_width = cell_size - self.wall_width * 2
-        self.width = cell_size * width
-        self.height = cell_size * height + 20 * len(texts)
+        self.width = cell_size * maze.width
+        self.window_width = max(self.width, max([len(text) * 10 for text in texts]))
+        self.height = cell_size * maze.height
+        self.window_height = self.height + 20 * len(texts)
         self.color_dict = color_dict
         self.pixel_dict = pixel_dict
         # Setting the animation generator and time attributes 
@@ -35,10 +37,9 @@ class Image:
         # Jump start the mlx and saving important attributes
         self.mlx = Mlx()
         self.mlx_ptr = self.mlx.mlx_init()
-        self.win_ptr = self.mlx.mlx_new_window(self.mlx_ptr, self.width,
-                                               self.height, self.title)
-        self.img_ptr = self.mlx.mlx_new_image(self.mlx_ptr, self.width,
-                                              cell_size * height)
+        self.win_ptr = self.mlx.mlx_new_window(self.mlx_ptr, self.window_width,
+                                               self.window_height, "Maze Generator")
+        self.img_ptr = self.mlx.mlx_new_image(self.mlx_ptr, self.width, self.height)
         buf, bpp, size_line, fmt = self.mlx.mlx_get_data_addr(self.img_ptr)
         self.buf = buf
         self.size_line = size_line
@@ -63,11 +64,12 @@ class Image:
             self.buf[index + 1] = g
             self.buf[index + 2] = r
             self.buf[index + 3] = 255
-        self.mlx.mlx_put_image_to_window(self.mlx_ptr, self.win_ptr, self.img_ptr, 0, 0)
+        self.mlx.mlx_put_image_to_window(self.mlx_ptr, self.win_ptr, self.img_ptr,
+                                         (self.window_width - self.width) // 2, 0)
 
     def insert_text(self) -> None:
 
-        y_pos = self.height - 20 * len(self.texts)
+        y_pos = self.height
         for text in self.texts:
             self.mlx.mlx_string_put(self.mlx_ptr, self.win_ptr, 0, y_pos, 0xFFFFFF, text)
             y_pos += 20
@@ -87,7 +89,8 @@ class Image:
             start_pixel -= 4 * rect_width
             start_pixel += self.size_line
         if paint:
-            self.mlx.mlx_put_image_to_window(self.mlx_ptr, self.win_ptr, self.img_ptr, 0, 0)
+            self.mlx.mlx_put_image_to_window(self.mlx_ptr, self.win_ptr, self.img_ptr,
+                                             (self.window_width - self.width) // 2, 0)
 
     def color_cell(self, element: str, curr_cell: tuple[int, int], paint: bool = True) -> None:
 
@@ -101,21 +104,22 @@ class Image:
         # Coloring the horizontal lines
         self.color_rect("maze_num_wall", 0, self.wall_width, self.width, False)
         start = (self.cell_size - self.wall_width) * self.size_line
-        for i in range(1, self.maze.height):
+        for i in range(1, self.height):
             self.color_rect("maze_num_wall", start, 2 * self.wall_width, self.width, False)
             start += self.cell_size * self.size_line
         self.color_rect("maze_num_wall", start, self.wall_width, self.width, False)
         # Coloring the vertical lines 
-        self.color_rect("maze_num_wall", 0, self.maze.height * self.cell_size, self.wall_width, False)
+        self.color_rect("maze_num_wall", 0, self.height * self.cell_size, self.wall_width, False)
         start = (self.cell_size - self.wall_width) * 4
-        for i in range(1, self.maze.width):
-            self.color_rect("maze_num_wall", start, self.maze.height * self.cell_size, 2 * self.wall_width, False)
+        for i in range(1, self.width):
+            self.color_rect("maze_num_wall", start, self.height, 2 * self.wall_width, False)
             start += self.cell_size * 4
-        self.color_rect("maze_num_wall", start, self.maze.height * self.cell_size, self.wall_width, False)
+        self.color_rect("maze_num_wall", start, self.height, self.wall_width, False)
         # Coloring the number 42
         for cell in self.maze.num_42_cells:
             self.color_cell("maze_num_wall", cell, False)
-        self.mlx.mlx_put_image_to_window(self.mlx_ptr, self.win_ptr, self.img_ptr, 0, 0)
+        self.mlx.mlx_put_image_to_window(self.mlx_ptr, self.win_ptr, self.img_ptr,
+                                         (self.window_width - self.width) // 2, 0)
 
     def color_wall(self, element: str, curr_cell: tuple[int, int], next_cell: tuple[int, int],
                    taken_cells: list[tuple[int, int]], paint: bool = True) -> int:
@@ -132,15 +136,18 @@ class Image:
         if y_curr == y_next and abs(x_curr - x_next) == 1:
             start -= 4 * 2 * self.wall_width
             self.color_rect(element, start, self.maze_width, 2 * self.wall_width)
+            self.color_rect(element, start, self.maze_width, 2 * self.wall_width)
             return (1)
         elif x_curr == x_next and abs(y_curr - y_next) == 1:
             start -= self.size_line * 2 * self.wall_width
+            self.color_rect(element, start, 2 * self.wall_width, self.maze_width)
             self.color_rect(element, start, 2 * self.wall_width, self.maze_width)
             return (1)
         return (0)
 
     def algorithm_sequence(self) -> Generator[None, None, None]:
 
+        cell_sequence = self.maze.algorithm_pos.copy()
         cell_sequence = self.maze.moves_sequence.copy()
         curr_cell = cell_sequence.pop(0)
         self.color_cell("background", curr_cell)
@@ -185,13 +192,14 @@ class Image:
                         self.deleting_walls = True
                     for cell1, cell2 in self.maze.walls_to_burn.items():
                         self.color_wall("walls_to_delete", cell1, cell2, [], False)
-                    self.mlx.mlx_put_image_to_window(self.mlx_ptr, self.win_ptr, self.img_ptr, 0, 0)
+                    self.mlx.mlx_put_image_to_window(self.mlx_ptr, self.win_ptr, self.img_ptr,
+                                                     (self.window_width - self.width) // 2, 0)
         elif self.deleting_walls:
             if (self.color_dict["walls_to_delete"] != [0, 0, 255]):
                 now = time.monotonic()
                 if (now - self.last_time > self.burst_delay):
                     b, g, r = self.color_dict["walls_to_delete"]
-                    self.color_dict["walls_to_delete"] = [0, 0, r + 1]
+                    self.color_dict["walls_to_delete"] = [0, 0, r + 5]
                     self.color_element("walls_to_delete")
                     self.last_time = time.monotonic()
             else:
@@ -204,7 +212,7 @@ class Image:
                 self.color_cell("exit", self.end)
                 self.deleting_walls = False
         return
- 
+
     # This function is responsable for drawing the moves player does with the arrows
     def move(self) -> None:
 
@@ -221,7 +229,8 @@ class Image:
             self.pixel_dict["entry"] = []
         self.pixel_dict["position"] = []
         self.color_cell("position", self.curr_cell, False)
-        self.mlx.mlx_put_image_to_window(self.mlx_ptr, self.win_ptr, self.img_ptr, 0, 0)
+        self.mlx.mlx_put_image_to_window(self.mlx_ptr, self.win_ptr, self.img_ptr,
+                                         (self.window_width - self.width) // 2, 0)
 
     def on_key(self, keycode, param) -> None:
 
@@ -254,6 +263,7 @@ class Image:
             self.pixel_dict["walls_to_delete"] = []
             self.color_dict["walls_to_delete"] = [0, 0, 100]
             self.draw_grid()
+            self.animation_on = True
             self.building_maze = True
             self.algorithm_gen = self.algorithm_sequence()
         # S key that makes the solution pop up 
@@ -263,13 +273,15 @@ class Image:
             self.pixel_dict["solution"] = []
             for cell in self.maze.solve_maze(start, end):
                 self.color_cell("solution", cell, False)
-            self.mlx.mlx_put_image_to_window(self.mlx_ptr, self.win_ptr, self.img_ptr, 0, 0)
+            self.mlx.mlx_put_image_to_window(self.mlx_ptr, self.win_ptr, self.img_ptr,
+                                             (self.window_width - self.width) // 2, 0)
         # H key that hide the solution 
         if keycode == 104 and not (self.building_maze or self.deleting_walls):
             self.color_element("solution", self.color_dict["background"])
             self.color_element("player_path")
             self.color_element("position")
-            self.mlx.mlx_put_image_to_window(self.mlx_ptr, self.win_ptr, self.img_ptr, 0, 0)
+            self.mlx.mlx_put_image_to_window(self.mlx_ptr, self.win_ptr, self.img_ptr,
+                                             (self.window_width - self.width) // 2, 0)
         # Arrows to move single player 
         if keycode in [65361, 65362, 65363, 65364] and not (self.building_maze or self.deleting_walls):
             if self.curr_cell != self.start:

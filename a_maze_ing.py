@@ -36,14 +36,13 @@ def main() -> None:
                   "position": [150, 150, 150]}
     pixel_dict = {key: [] for key in color_dict.keys()}
     texts = ["====== A-Maze-Ing ======",
-             "Use arrows to move",
              "Press +/- to change animation speed",
+             "Use arrows to move",
              "Press SPACE to Change Colors",
              "Press N to Re-generate maze",
              "Press S/H to Show/Hide Solution",
              "Press ESC to Quit"]
-    maze_visual = Image(maze, "Maze Generator", texts, 25, maze.width,
-                        maze.height, color_dict, pixel_dict)
+    maze_visual = Image(maze, "Maze Generator", texts, 25,  color_dict, pixel_dict)
     maze_visual.start_visual()
 
 
