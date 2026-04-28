@@ -42,7 +42,7 @@ def main() -> None:
              "Press N to Re-generate maze",
              "Press S/H to Show/Hide Solution",
              "Press ESC to Quit"]
-    maze_visual = Image(maze, "Maze Generator", texts, 25,  color_dict, pixel_dict)
+    maze_visual = Image(maze, texts, 25,  color_dict, pixel_dict)
     maze_visual.start_visual()
 
 
