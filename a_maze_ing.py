@@ -14,19 +14,17 @@ def main() -> None:
     if isinstance(config_dict, str):
         print(config_dict)
         sys.exit()
-    num_42_cells = parsing.get_42_cells(config_dict)
     random.seed(config_dict["seed"])
-    try:
-        parsing.parsing_values(config_dict, num_42_cells)
-    except ValueError as message:
-        print(message)
-        sys.exit()
-    maze = MazeGenerator(config_dict["width"], config_dict["height"],
-                         config_dict["entry"], config_dict["exit"],
-                         config_dict["output_file"], config_dict["perfect"], num_42_cells)
+    maze = MazeGenerator(config_dict["width"],
+                         config_dict["height"],
+                         config_dict["entry"],
+                         config_dict["exit"],
+                         config_dict["output_file"],
+                         config_dict["perfect"],
+                         config_dict["taken_cells"])
     maze.create_maze()
     maze.write_output()
-    color_dict = {"walls_to_delete": [0, 0, 100],
+    color_dict = {"del_walls": [0, 0, 100],
                   "background": [120, 50, 90],
                   "maze_num_wall": [120, 120, 120],
                   "solution": [0, 255, 0],
@@ -34,7 +32,8 @@ def main() -> None:
                   "exit": [0, 0, 255],
                   "player_path": [70, 70, 70],
                   "position": [150, 150, 150]}
-    pixel_dict = {key: [] for key in color_dict.keys()}
+    pixel_dict: dict[str, list[int]] = {key: [] for key
+                                        in color_dict.keys()}
     texts = ["====== A-Maze-Ing ======",
              "Press +/- to change animation speed",
              "Use arrows to move",
