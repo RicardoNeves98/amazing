@@ -29,10 +29,9 @@ class MazeGenerator:
                 grid[(j, i)] = [1, 1, 1, 1]
         return (grid)
 
-    def get_possible_moves1(self,
-                            curr_coordinate: tuple[int, int],
-                            taken_cells: list[tuple[int, int]]) -> dict[
-                                int, tuple[int, int]]:
+    def get_possible_moves1(
+            self, curr_coordinate: tuple[int, int],
+            taken_cells: list[tuple[int, int]]) -> dict[int, tuple[int, int]]:
         """Return valid neighboring moves excluding visited cells,
         out-of-bounds positions, and '42' cells."""
         x, y = curr_coordinate
@@ -60,14 +59,12 @@ class MazeGenerator:
         total_cells = self.height * self.width
         while len(self.moves_sequence) + total_num_cells != total_cells:
             possible_moves_dict = self.get_possible_moves1(
-                curr_cell,
-                self.moves_sequence)
+                curr_cell, self.moves_sequence)
             while not possible_moves_dict:
                 curr_index = self.moves_sequence.index(curr_cell)
                 curr_cell = self.moves_sequence[curr_index - 1]
                 possible_moves_dict = self.get_possible_moves1(
-                    curr_cell,
-                    self.moves_sequence)
+                    curr_cell, self.moves_sequence)
             move_index = random.choice(list(possible_moves_dict.keys()))
             self.walls_config[curr_cell][move_index] = 0
             curr_cell = possible_moves_dict[move_index]
@@ -76,8 +73,8 @@ class MazeGenerator:
         if not self.maze_type:
             self.remove_walls()
 
-    def select_cell(self,
-                    curr_cell: tuple[int, int]) -> tuple[int, int] | None:
+    def select_cell(
+            self, curr_cell: tuple[int, int]) -> tuple[int, int] | None:
         """Randomly select a valid neighboring cell separated by a wall,
         remove the wall, and return the new cell or None if unavailable."""
         curr_x, curr_y = curr_cell
@@ -146,32 +143,34 @@ class MazeGenerator:
             possible_moves.append(cell_left)
         return (possible_moves)
 
-    def solve_maze(self,
-                   start_cell: tuple[int, int],
+    def solve_maze(self, start_cell: tuple[int, int],
                    end_cell: tuple[int, int]) -> list[tuple[int, int]]:
         """Find a path from start to end using backtracking through open walls
         and return the solution path."""
+        index = 1
         curr_cell = start_cell
-        best_path = [curr_cell]
-        cell_paths: dict[tuple[int, int], list[tuple[int, int]]] = {}
-        while curr_cell != end_cell:
-            possible_moves = self.get_possible_moves2(curr_cell, best_path)
-            if not possible_moves:
-                best_path.pop()
-                curr_cell = best_path[-1]
-                possible_moves = cell_paths[curr_cell]
-                while not possible_moves:
-                    best_path.pop()
-                    curr_cell = best_path[-1]
-                    possible_moves = cell_paths[curr_cell]
-            next_cell = possible_moves[-1]
-            possible_moves.pop()
-            cell_paths[curr_cell] = possible_moves
-            best_path.append(next_cell)
-            curr_cell = next_cell
-        best_path.pop()
-        best_path.pop(0)
-        return (best_path)
+        cells_visited = [curr_cell]
+        possible_moves = self.get_possible_moves2(
+                curr_cell, cells_visited + self.num_42_cells)
+        connect_cells = {cell: curr_cell for cell in possible_moves}
+        while end_cell not in possible_moves:
+            cells_visited += possible_moves
+            curr_cell = cells_visited[index]
+            possible_moves = self.get_possible_moves2(
+                    curr_cell, cells_visited + self.num_42_cells)
+            possible_moves = [move for move in possible_moves if
+                              move not in cells_visited]
+            for cell in possible_moves:
+                connect_cells[cell] = curr_cell
+            index += 1
+        curr_cell = end_cell
+        move_sequence = []
+        while True:
+            curr_cell = connect_cells[curr_cell]
+            if curr_cell == start_cell:
+                break
+            move_sequence.insert(0, curr_cell)
+        return (move_sequence)
 
     def write_output(self) -> None:
         """Write the maze structure, start/end points, and solution path
