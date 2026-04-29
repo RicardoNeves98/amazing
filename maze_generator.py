@@ -148,6 +148,7 @@ class MazeGenerator:
         """Find a path from start to end using backtracking through open walls
         and return the solution path."""
         index = 1
+        move_sequence = []
         curr_cell = start_cell
         cells_visited = [curr_cell]
         possible_moves = self.get_possible_moves2(
@@ -158,13 +159,10 @@ class MazeGenerator:
             curr_cell = cells_visited[index]
             possible_moves = self.get_possible_moves2(
                     curr_cell, cells_visited + self.num_42_cells)
-            possible_moves = [move for move in possible_moves if
-                              move not in cells_visited]
             for cell in possible_moves:
                 connect_cells[cell] = curr_cell
             index += 1
         curr_cell = end_cell
-        move_sequence = []
         while True:
             curr_cell = connect_cells[curr_cell]
             if curr_cell == start_cell:
