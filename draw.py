@@ -218,12 +218,15 @@ class Image:
                     self.building_maze = False
                     if not self.maze.maze_type:
                         self.deleting_walls = True
-                    for cell1, cell2 in self.maze.walls_to_burn.items():
-                        self.color_wall("del_walls", cell1,
-                                        cell2, [], False)
-                    self.mlx.mlx_put_image_to_window(
-                        self.mlx_ptr, self.win_ptr, self.img_ptr,
-                        (self.win_width - self.img_width) // 2, 0)
+                        for cell1, cell2 in self.maze.walls_to_burn.items():
+                            self.color_wall("del_walls", cell1,
+                                            cell2, [], False)
+                        self.mlx.mlx_put_image_to_window(
+                            self.mlx_ptr, self.win_ptr, self.img_ptr,
+                            (self.win_width - self.img_width) // 2, 0)
+                    else:
+                        self.color_cell("entry", self.start)
+                        self.color_cell("exit", self.end)
         elif self.deleting_walls:
             if (self.color_dict["del_walls"] != [0, 0, 255]):
                 now = time.monotonic()
